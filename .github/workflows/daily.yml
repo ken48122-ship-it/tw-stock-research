@@ -1,4 +1,4 @@
-name: TWSE validated daily prices
+name: Taiwan stock daily research
 on:
   workflow_dispatch:
   schedule:
@@ -11,12 +11,12 @@ concurrency:
   group: twse-daily
   cancel-in-progress: false
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
+  research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
@@ -26,9 +26,33 @@ jobs:
           SUPABASE_URL: https://kgkjlrzvdfrpxujgivrt.supabase.co
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python validator.py --write
-      - uses: actions/upload-artifact@v4
+      - name: Financial statements and rankings
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          SUPABASE_URL: https://kgkjlrzvdfrpxujgivrt.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python research.py --write
+      - name: Restore local AI model
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ runner.temp }}/tw-stock-ai
+          key: linux-ollama-0.40.2-qwen2.5-1.5b-65ec06548149
+      - name: Start free local AI model
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        run: python setup_ai.py
+      - name: AI evidence summary
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          SUPABASE_URL: https://kgkjlrzvdfrpxujgivrt.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python ai_summary.py
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: validation-result
-          path: run-result.json
-          retention-days: 7
+          name: daily-research
+          path: |
+            run-result.json
+            reports/
+          retention-days: 14
