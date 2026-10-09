@@ -1,0 +1,30 @@
+name: Inspect official financial source contracts
+on:
+  push:
+    paths: ['.github/workflows/source-contract.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect public datasets
+        shell: python
+        run: |
+          import urllib.request, json, time
+          base = 'https://openapi.twse.com.tw/v1'
+          spec = json.load(urllib.request.urlopen(base + '/swagger.json', timeout=45))
+          paths = spec['paths']
+          relevant = {p: x for p,x in paths.items() if any(k in p for k in ('t187ap06','t187ap07','t187ap05','t187ap14','BWIBBU'))}
+          print('CONTRACTS', json.dumps(relevant,ensure_ascii=False)[:65000])
+          for endpoint in ['/opendata/t187ap06_L_ci','/opendata/t187ap07_L_ci','/opendata/t187ap05_L','/exchangeReport/BWIBBU_ALL']:
+              try:
+                  rows=json.load(urllib.request.urlopen(base+endpoint,timeout=45))
+                  print('SAMPLE',endpoint,len(rows),json.dumps(rows[:1],ensure_ascii=False))
+              except Exception as e: print('SOURCE_ERROR',endpoint,type(e).__name__,str(e))
+              time.sleep(2)
