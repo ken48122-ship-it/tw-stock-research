@@ -1,0 +1,34 @@
+name: TWSE validated daily prices
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 10 * * 1-5'
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: twse-daily
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
+      - name: Fetch, validate, and write
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          SUPABASE_URL: https://kgkjlrzvdfrpxujgivrt.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python validator.py --write
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-result
+          path: run-result.json
+          retention-days: 7
