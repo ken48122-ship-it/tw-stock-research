@@ -22,6 +22,15 @@ def fetch(url, body=None, headers=None):
                 return json.load(response)
         except urllib.error.HTTPError as exc:
             if exc.code not in (429, 500, 502, 503, 504) or attempt == 2:
+                if '/rest/v1/rpc/' in url:
+                    try:
+                        error = json.loads(exc.read())
+                        message = str(error.get('message', ''))[:500]
+                        for secret in (headers or {}).values():
+                            message = message.replace(secret, '[redacted]')
+                        raise RuntimeError(f"Database HTTP {exc.code}: {error.get('code', 'unknown')} {message}") from None
+                    except (ValueError, UnicodeError):
+                        pass
                 raise RuntimeError(f'HTTP {exc.code}; response omitted to protect credentials') from None
         except (urllib.error.URLError, TimeoutError):
             if attempt == 2:

@@ -11,7 +11,7 @@ class ResearchTests(unittest.TestCase):
     def test_growth_zero_base_unknown(self):
         self.assertIsNone(change(100,0))
         self.assertIsNone(change(100,-20))
-        self.assertEqual(change(120,100),20-4e-15)
+        self.assertAlmostEqual(change(120,100),20)
     def test_period_not_export_date(self):
         self.assertEqual(quarter({'年度':'115','季別':'2'}),dt.date(2026,6,30))
         self.assertEqual(revenue_month('11508'),dt.date(2026,8,1))
@@ -40,6 +40,7 @@ class ResearchTests(unittest.TestCase):
         profile={k:{'periods':{next(iter(v.values()))['period']:8}} for k,v in maps.items()}
         rows,ranks=build_scores(maps,masters,profile,dt.date(2026,10,9))
         self.assertIsNone(rows[0]['total_score'])
+        self.assertIsNone(rows[0]['growth_score'])
         self.assertIsNone(rows[1]['total_score'])
         self.assertEqual(rows[2]['total_score'],50)
         self.assertTrue(all(r['stock_id'] not in ('0','1') for r in ranks))

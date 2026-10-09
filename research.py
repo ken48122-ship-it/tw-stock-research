@@ -140,6 +140,7 @@ def build_scores(maps, master, profile, today):
     for r in rows:
         peers=groups[r['industry']]
         def rank(field, higher=True):
+            if r['reasons']: return None
             return percentile([p['factors'][field] for p in peers if p['factors'][field] is not None],r['factors'][field],higher)
         r['growth_score']=rank('revenue_yoy')
         r['quality_score']=rank('operating_margin')
