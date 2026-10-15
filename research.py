@@ -89,7 +89,6 @@ def normalize(data, companies, today):
                 end = day.replace(day=calendar.monthrange(day.year, day.month)[1])
                 if not 0 <= (today - end).days <= 75: raise ValueError('Stale/future revenue month')
                 current = num(raw['營業收入-當月營收'])
-                if current is not None and current < 0: raise ValueError('Negative revenue')
                 facts = {'monthly_revenue': current,
                          'revenue_yoy': change(current, num(raw['營業收入-去年當月營收'])),
                          'revenue_mom': change(current, num(raw['營業收入-上月營收'])),
@@ -127,6 +126,7 @@ def build_scores(maps, master, profile, today):
              'debt_ratio':pct(bal.get('liabilities'),bal.get('assets')), 'pe':val.get('pe'), 'pb':val.get('pb'),
              'acceleration':None if rev.get('revenue_yoy') is None or rev.get('cumulative_yoy') is None else rev['revenue_yoy']-rev['cumulative_yoy']}
         reasons=[]
+        if rev.get('monthly_revenue') is not None and rev['monthly_revenue'] < 0: reasons.append('negative_reported_monthly_revenue')
         if not inc: reasons.append('financial_sector_or_missing_income')
         if any(maps[k].get(code,{}).get('period') != common[k] for k in common): reasons.append('missing_or_mixed_period')
         if inc.get('period') != bal.get('period'): reasons.append('income_balance_period_mismatch')
@@ -200,6 +200,9 @@ def main():
     if args.write:
         url=os.environ['SUPABASE_URL'].rstrip('/');key=os.environ['SUPABASE_SECRET_KEY']
         if url!='https://kgkjlrzvdfrpxujgivrt.supabase.co' or not key.startswith('sb_secret_'): raise ValueError('Invalid backend configuration')
+        company_rows=[{'stock_id':code,'name':c['公司簡稱'],'market':'TWSE','industry':c['產業別']} for code,c in master.items()]
+        fetch(url+'/rest/v1/companies?on_conflict=stock_id', company_rows,
+              {'apikey':key,'Prefer':'resolution=merge-duplicates,return=representation'})
         result=fetch(url+'/rest/v1/rpc/ingest_twse_research_v1',{'p_data':{'sources':sources,'scores':rows,'rankings':rankings,'report':report}}, {'apikey':key})
         report['database']=result
         (out/'research.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')

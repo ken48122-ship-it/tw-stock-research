@@ -35,6 +35,7 @@ class ResearchTests(unittest.TestCase):
             maps['balance'][i]={'period':'2026-06-30','assets':100,'liabilities':20}
             maps['revenue'][i]={'period':'2026-08-01','revenue_yoy':10,'revenue_mom':5,'cumulative_yoy':8}
             maps['valuation'][i]={'period':'2026-10-08','pe':10,'pb':2}
+        maps['revenue']['7']['monthly_revenue']=-1
         maps['income']['0']['eps_ytd']=-1
         maps['valuation']['1']['pe']=None
         profile={k:{'periods':{next(iter(v.values()))['period']:8}} for k,v in maps.items()}
@@ -42,8 +43,10 @@ class ResearchTests(unittest.TestCase):
         self.assertIsNone(rows[0]['total_score'])
         self.assertIsNone(rows[0]['growth_score'])
         self.assertIsNone(rows[1]['total_score'])
+        self.assertIsNone(rows[7]['total_score'])
+        self.assertIn('negative_reported_monthly_revenue',rows[7]['reasons'])
         self.assertEqual(rows[2]['total_score'],50)
-        self.assertTrue(all(r['stock_id'] not in ('0','1') for r in ranks))
+        self.assertTrue(all(r['stock_id'] not in ('0','1','7') for r in ranks))
     def test_duplicate_source_rejected(self):
         raw={'Code':'2330','Date':'1151008','PEratio':'10','PBratio':'2','DividendYield':'3'}
         with self.assertRaises(ValueError): normalize({'valuation':[raw,raw]},[{'公司代號':'2330'}],dt.date(2026,10,9))
